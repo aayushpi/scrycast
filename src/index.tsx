@@ -1,6 +1,11 @@
-import { Grid, ActionPanel, Action, showToast, Toast, Color, Icon, Detail } from "@raycast/api";
-import { useState } from "react";
+import { Grid, List, ActionPanel, Action, showToast, Toast, Color, Icon, Clipboard } from "@raycast/api";
+import { useState, useMemo, useEffect } from "react";
 import { useFetch, usePromise } from "@raycast/utils";
+import { writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ImageUris {
   small: string;
@@ -25,8 +30,9 @@ interface Card {
   image_uris?: ImageUris;
   card_faces?: CardFace[];
   type_line?: string;
-  mana_cost?: string;
   set_name?: string;
+  edhrec_rank?: number;
+  prices?: { usd?: string; usd_foil?: string };
 }
 
 interface ScryfallSearchResponse {
@@ -49,16 +55,16 @@ interface TaggerResponse {
   errors?: Array<{ message: string }>;
 }
 
+type SortOrder = "name" | "edhrec" | "usd";
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getCardImageUri(card: Card): string {
-  // Use png: transparent, rounded full card at 745×1040 (https://scryfall.com/docs/api/images)
-  if (card.image_uris?.png) return card.image_uris.png;
-  if (card.card_faces?.[0]?.image_uris?.png) return card.card_faces[0].image_uris.png;
-
+function getCardImageUri(card: Card, size: keyof ImageUris = "png"): string {
+  if (card.image_uris?.[size]) return card.image_uris[size];
+  if (card.card_faces?.[0]?.image_uris?.[size]) return card.card_faces[0].image_uris[size];
   const fallback = card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal ?? "";
   if (fallback) {
-    console.warn(`[Scrycast] PNG unavailable for "${card.name}" (${card.id}), falling back to normal`);
+    console.warn(`[Scrycast] ${size} unavailable for "${card.name}" (${card.id}), falling back to normal`);
   } else {
     console.error(`[Scrycast] No image URI found for card "${card.name}" (${card.id})`, card);
   }
@@ -69,12 +75,47 @@ function getTaggerUrl(card: Card): string {
   return `https://tagger.scryfall.com/card/${card.set}/${card.collector_number}`;
 }
 
+
+// Sort locally so order changes never trigger a re-fetch
+function sortCards(cards: Card[], order: SortOrder): Card[] {
+  return [...cards].sort((a, b) => {
+    if (order === "name") {
+      return a.name.localeCompare(b.name); // A → Z
+    }
+    if (order === "edhrec") {
+      // Lower rank number = more popular; nulls go last
+      const ra = a.edhrec_rank ?? Infinity;
+      const rb = b.edhrec_rank ?? Infinity;
+      return ra - rb;
+    }
+    // usd: higher price first; nulls go last
+    const pa = parseFloat(a.prices?.usd ?? "-1");
+    const pb = parseFloat(b.prices?.usd ?? "-1");
+    return pb - pa;
+  });
+}
+
+async function copyCardImage(imageUri: string): Promise<void> {
+  const response = await fetch(imageUri);
+  if (!response.ok) throw new Error(`Failed to fetch image (${response.status})`);
+  const buffer = new Uint8Array(await response.arrayBuffer());
+  const tmpPath = join(tmpdir(), `scrycast-${Date.now()}.png`);
+  await writeFile(tmpPath, buffer);
+  await Clipboard.copy({ file: tmpPath });
+}
+
+function scryfallMultiUrl(cards: Card[]): string {
+  const query = cards.map((c) => `!"${c.name}"`).join(" OR ");
+  return `https://scryfall.com/search?q=${encodeURIComponent(query)}`;
+}
+
+const FEEDBACK_URL = "https://github.com/aayushpi/scrycast/issues";
+
 // ─── Tagger API ───────────────────────────────────────────────────────────────
 
 async function fetchCardTags(set: string, collectorNumber: string): Promise<Tagging[]> {
   const cardUrl = `https://tagger.scryfall.com/card/${set}/${collectorNumber}`;
 
-  // Step 1: load the page to get a session cookie + CSRF token
   console.log(`[Scrycast] Fetching tagger page for ${set}/${collectorNumber}`);
   const pageResponse = await fetch(cardUrl, {
     headers: {
@@ -97,8 +138,6 @@ async function fetchCardTags(set: string, collectorNumber: string): Promise<Tagg
   }
 
   const csrfToken = csrfMatch[1];
-
-  // Node 18+ exposes getSetCookie() for proper multi-cookie parsing
   const setCookies: string[] =
     typeof (pageResponse.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie === "function"
       ? (pageResponse.headers as unknown as { getSetCookie: () => string[] }).getSetCookie()
@@ -109,11 +148,8 @@ async function fetchCardTags(set: string, collectorNumber: string): Promise<Tagg
     .map((c) => c.split(";")[0])
     .join("; ");
 
-  console.log(
-    `[Scrycast] CSRF acquired (${csrfToken.slice(0, 12)}…), cookies: ${cookieHeader.slice(0, 60)}…`
-  );
+  console.log(`[Scrycast] CSRF acquired (${csrfToken.slice(0, 12)}…), cookies: ${cookieHeader.slice(0, 60)}…`);
 
-  // Step 2: query the GraphQL endpoint
   const gqlResponse = await fetch("https://tagger.scryfall.com/graphql", {
     method: "POST",
     headers: {
@@ -150,10 +186,17 @@ async function fetchCardTags(set: string, collectorNumber: string): Promise<Tagg
   return taggings;
 }
 
-// ─── Card Tags Detail View ────────────────────────────────────────────────────
+// ─── Card Tags View ───────────────────────────────────────────────────────────
+
+function tagSearchQuery(type: string, name: string): string {
+  if (type === "ORACLE_CARD_TAG") return `oracletag:"${name}"`;
+  if (type === "ILLUSTRATION_TAG") return `arttag:"${name}"`;
+  return `"${name}"`;
+}
 
 function CardTagsView({ card }: { card: Card }) {
-  const imageUri = getCardImageUri(card);
+  // Use the normal variant (488×680px)
+  const imageUri = getCardImageUri(card, "normal");
 
   const {
     isLoading,
@@ -172,73 +215,79 @@ function CardTagsView({ card }: { card: Card }) {
     (t) => t.tag.type !== "ORACLE_CARD_TAG" && t.tag.type !== "ILLUSTRATION_TAG"
   );
 
+  const cardDetail = <List.Item.Detail markdown={`![${card.name}](${imageUri})`} />;
+
+  function tagItem(t: Tagging, color: Color) {
+    const query = tagSearchQuery(t.tag.type, t.tag.name);
+    return (
+      <List.Item
+        key={t.tag.name}
+        title={t.tag.name}
+        icon={{ source: Icon.Tag, tintColor: color }}
+        detail={cardDetail}
+        actions={
+          <ActionPanel>
+            <Action.Push
+              title="Search This Tag"
+              icon={Icon.MagnifyingGlass}
+              target={<Command initialSearch={query} />}
+            />
+            <Action.OpenInBrowser
+              title="Open in Scryfall Tagger"
+              url={getTaggerUrl(card)}
+              icon={{ source: Icon.Tag, tintColor: Color.Orange }}
+            />
+            <Action.OpenInBrowser
+              title="Open in Scryfall"
+              url={card.scryfall_uri}
+              icon={{ source: Icon.Globe, tintColor: Color.Blue }}
+            />
+            <ActionPanel.Section title="Feedback">
+              <Action.OpenInBrowser
+                title="Submit Bug or Feature Request"
+                url={FEEDBACK_URL}
+                icon={Icon.Bug}
+              />
+            </ActionPanel.Section>
+          </ActionPanel>
+        }
+      />
+    );
+  }
+
   return (
-    <Detail
-      navigationTitle={`${card.name} — Tags`}
-      isLoading={isLoading}
-      markdown={`![${card.name}](${imageUri})`}
-      metadata={
-        <Detail.Metadata>
-          {oracleTags.length > 0 && (
-            <Detail.Metadata.TagList title="Oracle Tags">
-              {oracleTags.map((t) => (
-                <Detail.Metadata.TagList.Item key={t.tag.name} text={t.tag.name} color={Color.Blue} />
-              ))}
-            </Detail.Metadata.TagList>
-          )}
-          {artTags.length > 0 && (
-            <>
-              {oracleTags.length > 0 && <Detail.Metadata.Separator />}
-              <Detail.Metadata.TagList title="Art Tags">
-                {artTags.map((t) => (
-                  <Detail.Metadata.TagList.Item key={t.tag.name} text={t.tag.name} color={Color.Purple} />
-                ))}
-              </Detail.Metadata.TagList>
-            </>
-          )}
-          {otherTags.length > 0 && (
-            <>
-              <Detail.Metadata.Separator />
-              <Detail.Metadata.TagList title="Other Tags">
-                {otherTags.map((t) => (
-                  <Detail.Metadata.TagList.Item key={t.tag.name} text={t.tag.name} />
-                ))}
-              </Detail.Metadata.TagList>
-            </>
-          )}
-          {!isLoading && taggings?.length === 0 && !error && (
-            <Detail.Metadata.Label title="Tags" text="No tags found for this card" />
-          )}
-          {error && (
-            <Detail.Metadata.Label title="Error" text={error.message} icon={Icon.ExclamationMark} />
-          )}
-        </Detail.Metadata>
-      }
-      actions={
-        <ActionPanel>
-          <Action.OpenInBrowser
-            title="Open in Scryfall Tagger"
-            url={getTaggerUrl(card)}
-            icon={{ source: Icon.Tag, tintColor: Color.Orange }}
-          />
-          <Action.OpenInBrowser
-            title="Open in Scryfall"
-            url={card.scryfall_uri}
-            icon={{ source: Icon.Globe, tintColor: Color.Blue }}
-          />
-        </ActionPanel>
-      }
-    />
+    <List navigationTitle={`${card.name} — Tags`} isLoading={isLoading} isShowingDetail>
+      {!isLoading && taggings?.length === 0 && !error && (
+        <List.EmptyView icon="🪄" title="No Tags Found" description="This card has no tagger entries yet." />
+      )}
+      {oracleTags.length > 0 && (
+        <List.Section title="Oracle Tags">{oracleTags.map((t) => tagItem(t, Color.Blue))}</List.Section>
+      )}
+      {artTags.length > 0 && (
+        <List.Section title="Art Tags">{artTags.map((t) => tagItem(t, Color.Purple))}</List.Section>
+      )}
+      {otherTags.length > 0 && (
+        <List.Section title="Other Tags">{otherTags.map((t) => tagItem(t, Color.SecondaryText))}</List.Section>
+      )}
+    </List>
   );
 }
 
 // ─── Main Search View ─────────────────────────────────────────────────────────
 
-export default function Command() {
-  const [searchText, setSearchText] = useState("");
+export default function Command({ initialSearch = "" }: { initialSearch?: string }) {
+  const [searchText, setSearchText] = useState(initialSearch);
+  const [order, setOrder] = useState<SortOrder>("name");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // Clear selection whenever the search query changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [searchText]);
+
+  // Fetch without &order — we sort locally so order changes never re-fetch
   const { isLoading, data } = useFetch<ScryfallSearchResponse>(
-    `https://api.scryfall.com/cards/search?q=${encodeURIComponent(searchText)}&order=name&unique=cards`,
+    `https://api.scryfall.com/cards/search?q=${encodeURIComponent(searchText)}&unique=cards`,
     {
       execute: searchText.trim().length > 0,
       keepPreviousData: true,
@@ -254,9 +303,23 @@ export default function Command() {
     }
   );
 
-  const cards = data?.data ?? [];
+  // Sort locally — instant for ≤175 cards, no extra network requests
+  const cards = useMemo(() => sortCards(data?.data ?? [], order), [data, order]);
+
   const hasResults = cards.length > 0;
   const isSearching = isLoading && searchText.trim().length > 0 && !hasResults;
+  const selectedCards = cards.filter((c) => selectedIds.has(c.id));
+  // Show selection mode as soon as anything is selected so the user gets immediate feedback
+  const isMultiSelect = selectedIds.size >= 1;
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   return (
     <Grid
@@ -265,9 +328,17 @@ export default function Command() {
       fit={Grid.Fit.Fill}
       inset={Grid.Inset.Small}
       isLoading={isLoading}
+      searchText={searchText}
       onSearchTextChange={setSearchText}
       searchBarPlaceholder='Search cards — try "t:creature c:red cmc<=3" or just a card name'
       throttle
+      searchBarAccessory={
+        <Grid.Dropdown tooltip="Sort Order" value={order} onChange={(v) => setOrder(v as SortOrder)}>
+          <Grid.Dropdown.Item title="Name (A → Z)" value="name" />
+          <Grid.Dropdown.Item title="EDHRec Rank (High → Low)" value="edhrec" />
+          <Grid.Dropdown.Item title="Price (High → Low)" value="usd" />
+        </Grid.Dropdown>
+      }
     >
       {isSearching ? (
         <Grid.EmptyView icon="🪄" title="Searching…" description={`Looking up "${searchText}"`} />
@@ -283,50 +354,106 @@ export default function Command() {
         />
       ) : (
         <Grid.Section
-          title={`${data?.total_cards?.toLocaleString() ?? cards.length} result${(data?.total_cards ?? 0) !== 1 ? "s" : ""}`}
+          title={
+            selectedIds.size > 0
+              ? `${selectedIds.size} selected · ${data?.total_cards?.toLocaleString() ?? cards.length} results`
+              : `${data?.total_cards?.toLocaleString() ?? cards.length} result${(data?.total_cards ?? 0) !== 1 ? "s" : ""}`
+          }
           subtitle={data?.has_more ? "Showing first 175 — refine your search to narrow results" : undefined}
         >
           {cards.map((card) => {
             const imageUri = getCardImageUri(card);
-            const taggerUrl = getTaggerUrl(card);
+            const isSelected = selectedIds.has(card.id);
 
             return (
               <Grid.Item
                 key={card.id}
                 content={{ source: imageUri }}
-                title={card.name}
+                title={isSelected ? `✓ ${card.name}` : card.name}
                 subtitle={card.set_name}
                 actions={
                   <ActionPanel>
-                    <ActionPanel.Section title={card.name}>
+                    {isMultiSelect ? (
+                      <ActionPanel.Section title={`${selectedIds.size} cards selected`}>
+                        <Action.CopyToClipboard
+                          title="Copy Card Names"
+                          content={selectedCards.map((c) => c.name).join("\n")}
+                          icon={Icon.Clipboard}
+                        />
+                        <Action.OpenInBrowser
+                          title="Show in Scryfall"
+                          url={scryfallMultiUrl(selectedCards)}
+                          icon={{ source: Icon.Globe, tintColor: Color.Blue }}
+                        />
+                        <Action
+                          title={isSelected ? "Deselect Card" : "Select Card"}
+                          icon={isSelected ? Icon.XMarkCircle : Icon.Checkmark}
+                          shortcut={{ modifiers: ["cmd", "shift"], key: "s" }}
+                          onAction={() => toggleSelect(card.id)}
+                        />
+                        <Action
+                          title="Clear Selection"
+                          icon={Icon.Trash}
+                          shortcut={{ modifiers: ["cmd", "shift"], key: "x" }}
+                          onAction={() => setSelectedIds(new Set())}
+                        />
+                      </ActionPanel.Section>
+                    ) : (
+                      <ActionPanel.Section title={card.name}>
+                        <Action.OpenInBrowser
+                          title="Open in Scryfall"
+                          url={card.scryfall_uri}
+                          icon={{ source: Icon.Globe, tintColor: Color.Blue }}
+                        />
+                        <Action.Push
+                          title="Show Tags"
+                          target={<CardTagsView card={card} />}
+                          icon={{ source: Icon.Tag, tintColor: Color.Purple }}
+                          shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+                        />
+                        <Action.CopyToClipboard
+                          title="Copy Card Name"
+                          content={card.name}
+                          shortcut={{ modifiers: ["cmd"], key: "c" }}
+                          icon={Icon.Clipboard}
+                        />
+                        <Action.OpenInBrowser
+                          title="Open in Scryfall Tagger"
+                          url={getTaggerUrl(card)}
+                          icon={{ source: Icon.Tag, tintColor: Color.Orange }}
+                          shortcut={{ modifiers: ["cmd"], key: "t" }}
+                        />
+                        <Action
+                          title="Copy Card Image"
+                          icon={Icon.Image}
+                          shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+                          onAction={async () => {
+                            const toast = await showToast({ style: Toast.Style.Animated, title: "Copying image…" });
+                            try {
+                              await copyCardImage(imageUri);
+                              toast.style = Toast.Style.Success;
+                              toast.title = "Image copied";
+                            } catch (err) {
+                              console.error("[Scrycast] copyCardImage failed:", (err as Error).message);
+                              toast.style = Toast.Style.Failure;
+                              toast.title = "Failed to copy image";
+                              toast.message = (err as Error).message;
+                            }
+                          }}
+                        />
+                        <Action
+                          title={isSelected ? "Deselect Card" : "Select Card"}
+                          icon={isSelected ? Icon.XMarkCircle : Icon.Checkmark}
+                          shortcut={{ modifiers: ["cmd", "shift"], key: "s" }}
+                          onAction={() => toggleSelect(card.id)}
+                        />
+                      </ActionPanel.Section>
+                    )}
+                    <ActionPanel.Section title="Feedback">
                       <Action.OpenInBrowser
-                        title="Open in Scryfall"
-                        url={card.scryfall_uri}
-                        icon={{ source: Icon.Globe, tintColor: Color.Blue }}
-                      />
-                      <Action.Push
-                        title="Show Tags"
-                        target={<CardTagsView card={card} />}
-                        icon={{ source: Icon.Tag, tintColor: Color.Purple }}
-                        shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
-                      />
-                      <Action.CopyToClipboard
-                        title="Copy Card Name"
-                        content={card.name}
-                        shortcut={{ modifiers: ["cmd"], key: "c" }}
-                        icon={Icon.Clipboard}
-                      />
-                      <Action.OpenInBrowser
-                        title="Open in Scryfall Tagger"
-                        url={taggerUrl}
-                        icon={{ source: Icon.Tag, tintColor: Color.Orange }}
-                        shortcut={{ modifiers: ["cmd"], key: "t" }}
-                      />
-                      <Action.CopyToClipboard
-                        title="Copy Card Image URL"
-                        content={imageUri}
-                        shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
-                        icon={Icon.Image}
+                        title="Submit Bug or Feature Request"
+                        url={FEEDBACK_URL}
+                        icon={Icon.Bug}
                       />
                     </ActionPanel.Section>
                   </ActionPanel>
