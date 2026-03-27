@@ -16,6 +16,12 @@
       "title": "Search Cards",
       "description": "Search Magic: The Gathering cards using Scryfall syntax",
       "mode": "view"
+    },
+    {
+      "name": "saved-cards",
+      "title": "View Saved Cards",
+      "description": "View your saved Magic: The Gathering cards",
+      "mode": "view"
     }
   ],
   "dependencies": {
