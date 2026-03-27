@@ -5,7 +5,10 @@
   "description": "Search Magic: The Gathering cards using Scryfall's powerful search syntax",
   "icon": "extension-icon.png",
   "author": "aayushiyer",
-  "categories": ["Fun", "Other"],
+  "categories": [
+    "Fun",
+    "Other"
+  ],
   "license": "MIT",
   "commands": [
     {
@@ -22,7 +25,7 @@
   "devDependencies": {
     "@raycast/eslint-config": "^1.0.11",
     "@types/node": "20.8.10",
-    "@types/react": "18.2.79",
+    "@types/react": "^19.2.14",
     "eslint": "^8.57.0",
     "prettier": "^3.3.3",
     "typescript": "^5.4.5"
