@@ -28,6 +28,7 @@ export interface Card {
   set: string;
   collector_number: string;
   scryfall_uri: string;
+  prints_search_uri?: string;
   image_uris?: ImageUris;
   card_faces?: CardFace[];
   type_line?: string;

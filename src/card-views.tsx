@@ -1,11 +1,15 @@
-import { List, Detail, ActionPanel, Action, showToast, Toast, Color, Icon } from "@raycast/api";
-import { usePromise } from "@raycast/utils";
+import { List, Detail, Grid, ActionPanel, Action, showToast, Toast, Color, Icon } from "@raycast/api";
+import { usePromise, useFetch, useLocalStorage } from "@raycast/utils";
+import { useMemo } from "react";
 import {
   Card,
   FEEDBACK_URL,
+  SAVED_CARDS_KEY,
+  ScryfallSearchResponse,
   getCardImageUri,
   getTaggerUrl,
   getEdhrecUrl,
+  copyCardImage,
 } from "./shared";
 
 // ─── Tagger API ───────────────────────────────────────────────────────────────
@@ -188,6 +192,137 @@ export function CardTagsView({ card, searchTagTarget }: CardTagsViewProps) {
         <List.Section title="Other Tags">{otherTags.map((t) => tagItem(t, Color.SecondaryText))}</List.Section>
       )}
     </List>
+  );
+}
+
+// ─── Prints View ──────────────────────────────────────────────────────────────
+
+export interface PrintsViewProps {
+  card: Card;
+  searchTagTarget?: (query: string) => JSX.Element;
+}
+
+export function PrintsView({ card, searchTagTarget }: PrintsViewProps) {
+  const printsUrl =
+    card.prints_search_uri ??
+    `https://api.scryfall.com/cards/search?q=${encodeURIComponent(`!"${card.name}"`)}&unique=prints&order=released`;
+
+  const { isLoading, data } = useFetch<ScryfallSearchResponse>(printsUrl, {
+    onError: (err) => {
+      showToast({ style: Toast.Style.Failure, title: "Failed to load prints", message: err.message });
+    },
+  });
+
+  const { value: savedCards, setValue: setSavedCards } = useLocalStorage<Card[]>(SAVED_CARDS_KEY, []);
+  const savedCardIds = useMemo(() => new Set((savedCards ?? []).map((c) => c.id)), [savedCards]);
+
+  function toggleSave(print: Card) {
+    if (savedCardIds.has(print.id)) {
+      setSavedCards((savedCards ?? []).filter((c) => c.id !== print.id));
+      showToast({ style: Toast.Style.Success, title: "Removed from Saved" });
+    } else {
+      setSavedCards([...(savedCards ?? []), print]);
+      showToast({ style: Toast.Style.Success, title: "Card Saved" });
+    }
+  }
+
+  const prints = data?.data ?? [];
+
+  return (
+    <Grid
+      columns={3}
+      aspectRatio="2/3"
+      fit={Grid.Fit.Fill}
+      inset={Grid.Inset.Small}
+      isLoading={isLoading}
+      navigationTitle={`${card.name} — All Prints`}
+    >
+      {!isLoading && prints.length === 0 ? (
+        <Grid.EmptyView icon="🧙" title="No Prints Found" description="Could not find any prints for this card." />
+      ) : (
+        <Grid.Section title={`${prints.length} print${prints.length !== 1 ? "s" : ""}`}>
+          {prints.map((print) => {
+            const imageUri = getCardImageUri(print);
+            const isSaved = savedCardIds.has(print.id);
+            return (
+              <Grid.Item
+                key={print.id}
+                content={{ source: imageUri }}
+                title={print.set_name ?? print.set.toUpperCase()}
+                subtitle={`#${print.collector_number}`}
+                actions={
+                  <ActionPanel>
+                    <ActionPanel.Section title={`${print.set_name} #${print.collector_number}`}>
+                      <Action.Push
+                        title="Show Card Details"
+                        target={<CardDetailView card={print} searchTagTarget={searchTagTarget} />}
+                        icon={Icon.Eye}
+                      />
+                      <Action.OpenInBrowser
+                        title="Open in Scryfall"
+                        url={print.scryfall_uri}
+                        icon={{ source: Icon.Globe, tintColor: Color.Blue }}
+                        shortcut={{ modifiers: ["cmd"], key: "return" }}
+                      />
+                      <Action.OpenInBrowser
+                        title="Open in EDHRec"
+                        url={getEdhrecUrl(print.name)}
+                        icon={{ source: Icon.Person, tintColor: Color.Green }}
+                        shortcut={{ modifiers: ["cmd", "ctrl"], key: "return" }}
+                      />
+                      <Action.CopyToClipboard
+                        title="Copy Card Name"
+                        content={print.name}
+                        shortcut={{ modifiers: ["cmd"], key: "c" }}
+                        icon={Icon.Clipboard}
+                      />
+                      <Action
+                        title="Copy Card Image"
+                        icon={Icon.Image}
+                        shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+                        onAction={async () => {
+                          const toast = await showToast({ style: Toast.Style.Animated, title: "Copying image…" });
+                          try {
+                            await copyCardImage(imageUri);
+                            toast.style = Toast.Style.Success;
+                            toast.title = "Image copied";
+                          } catch (err) {
+                            toast.style = Toast.Style.Failure;
+                            toast.title = "Failed to copy image";
+                            toast.message = (err as Error).message;
+                          }
+                        }}
+                      />
+                      <Action
+                        title={isSaved ? "Remove from Saved" : "Save Card"}
+                        icon={isSaved ? Icon.StarDisabled : Icon.Star}
+                        shortcut={{ modifiers: ["cmd"], key: "b" }}
+                        onAction={() => toggleSave(print)}
+                      />
+                      <Action.OpenInBrowser
+                        title="Open in Scryfall Tagger"
+                        url={getTaggerUrl(print)}
+                        icon={{ source: Icon.Tag, tintColor: Color.Orange }}
+                        shortcut={{ modifiers: ["cmd"], key: "t" }}
+                      />
+                      <Action.Push
+                        title="Show Tags"
+                        target={<CardTagsView card={print} searchTagTarget={searchTagTarget} />}
+                        icon={{ source: Icon.Tag, tintColor: Color.Purple }}
+                        shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+                      />
+                    </ActionPanel.Section>
+                    <ActionPanel.Section title="Feedback">
+                      <Action.OpenInBrowser title="Submit Bug or Feature Request" url={FEEDBACK_URL} icon={Icon.Bug} />
+                    </ActionPanel.Section>
+                  </ActionPanel>
+                }
+              />
+            );
+          })}
+        </Grid.Section>
+      )}
+    </Grid>
   );
 }
 

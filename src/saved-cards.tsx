@@ -9,7 +9,7 @@ import {
   getTaggerUrl,
   copyCardImage,
 } from "./shared";
-import { CardDetailView, CardTagsView } from "./card-views";
+import { CardDetailView, CardTagsView, PrintsView } from "./card-views";
 import Command from "./search-view";
 
 export default function SavedCards() {
@@ -106,6 +106,12 @@ export default function SavedCards() {
                         target={<CardTagsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />}
                         icon={{ source: Icon.Tag, tintColor: Color.Purple }}
                         shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+                      />
+                      <Action.Push
+                        title="View All Prints"
+                        target={<PrintsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />}
+                        icon={Icon.List}
+                        shortcut={{ modifiers: ["cmd"], key: "p" }}
                       />
                     </ActionPanel.Section>
                     <ActionPanel.Section title="Feedback">

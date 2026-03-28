@@ -1,4 +1,5 @@
 import { Grid, List, Detail, ActionPanel, Action, showToast, Toast, Color, Icon, Clipboard } from "@raycast/api";
+import { PrintsView } from "./card-views";
 import { useState, useMemo, useEffect } from "react";
 import { useFetch, usePromise, useLocalStorage } from "@raycast/utils";
 import { writeFile } from "node:fs/promises";
@@ -30,6 +31,7 @@ interface Card {
   set: string;
   collector_number: string;
   scryfall_uri: string;
+  prints_search_uri?: string;
   image_uris?: ImageUris;
   card_faces?: CardFace[];
   type_line?: string;
@@ -566,6 +568,12 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
                           target={<CardTagsView card={card} />}
                           icon={{ source: Icon.Tag, tintColor: Color.Purple }}
                           shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+                        />
+                        <Action.Push
+                          title="View All Prints"
+                          target={<PrintsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />}
+                          icon={Icon.List}
+                          shortcut={{ modifiers: ["cmd"], key: "p" }}
                         />
                         <Action
                           title={isSelected ? "Deselect Card" : "Select Card"}
