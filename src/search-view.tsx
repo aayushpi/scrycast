@@ -1,6 +1,6 @@
-import { Grid, List, Detail, ActionPanel, Action, showToast, Toast, Color, Icon, Clipboard } from "@raycast/api";
+import { Grid, List, Detail, ActionPanel, Action, showToast, Toast, Color, Icon, Clipboard, useNavigation } from "@raycast/api";
 import { PrintsView } from "./card-views";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useFetch, usePromise, useLocalStorage } from "@raycast/utils";
 import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -113,6 +113,8 @@ function scryfallMultiUrl(cards: Card[]): string {
 
 const FEEDBACK_URL = "https://github.com/aayushpi/scrycast/issues";
 const SAVED_CARDS_KEY = "savedCards";
+const SEARCH_HISTORY_KEY = "searchHistory";
+const MAX_HISTORY = 15;
 
 function getEdhrecUrl(cardName: string): string {
   return `https://edhrec.com/cards/${cardName.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim().replace(/\s+/g, "-")}`;
@@ -377,12 +379,15 @@ function CardDetailView({ card }: { card: Card }) {
 // ─── Main Search View ─────────────────────────────────────────────────────────
 
 export default function Command({ initialSearch = "" }: { initialSearch?: string }) {
+  const { push } = useNavigation();
   const [searchText, setSearchText] = useState(initialSearch);
   const [debouncedSearchText, setDebouncedSearchText] = useState(initialSearch);
   const [order, setOrder] = useState<SortOrder>("name");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const historySavedForQuery = useRef(false);
   const { value: savedCards, setValue: setSavedCards } = useLocalStorage<Card[]>(SAVED_CARDS_KEY, []);
   const savedCardIds = useMemo(() => new Set((savedCards ?? []).map((c) => c.id)), [savedCards]);
+  const { value: searchHistory, setValue: setSearchHistory } = useLocalStorage<string[]>(SEARCH_HISTORY_KEY, []);
 
   function toggleSave(card: Card) {
     if (savedCardIds.has(card.id)) {
@@ -401,7 +406,16 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
 
   useEffect(() => {
     setSelectedIds(new Set());
+    historySavedForQuery.current = false;
   }, [debouncedSearchText]);
+
+  function removeFromHistory(query: string) {
+    setSearchHistory((searchHistory ?? []).filter((q) => q !== query));
+  }
+
+  function clearHistory() {
+    setSearchHistory([]);
+  }
 
   const { isLoading, data } = useFetch<ScryfallSearchResponse>(
     `https://api.scryfall.com/cards/search?q=${encodeURIComponent(debouncedSearchText)}&unique=cards`,
@@ -422,6 +436,15 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
 
   const cards = useMemo(() => sortCards(data?.data ?? [], order), [data, order]);
 
+  function saveToHistory(query: string) {
+if (historySavedForQuery.current) return;
+    const q = query.trim();
+    if (!q) return;
+    historySavedForQuery.current = true;
+    const filtered = (searchHistory ?? []).filter((h) => h !== q);
+    setSearchHistory([q, ...filtered].slice(0, MAX_HISTORY));
+  }
+
   const hasResults = cards.length > 0;
   const isSearching = isLoading && debouncedSearchText.trim().length > 0 && !hasResults;
   const selectedCards = cards.filter((c) => selectedIds.has(c.id));
@@ -434,6 +457,62 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
       else next.add(id);
       return next;
     });
+  }
+
+  if (searchText === "") {
+    return (
+      <List
+        searchText={searchText}
+        onSearchTextChange={setSearchText}
+        searchBarPlaceholder='Search cards — try "t:creature c:red cmc<=3" or just a card name'
+      >
+        {(searchHistory ?? []).length === 0 ? (
+          <List.EmptyView
+            icon="🧙"
+            title="Search Scryfall"
+            description='Type a card name or Scryfall syntax to find cards — e.g. "t:dragon pow>=5"'
+          />
+        ) : (
+          <>
+          <List.Section title="Recent Searches">
+            {(searchHistory ?? []).map((query) => (
+              <List.Item
+                key={query}
+                title={query}
+                icon={Icon.Clock}
+                actions={
+                  <ActionPanel>
+                    <Action
+                      title="Search Again"
+                      icon={Icon.MagnifyingGlass}
+                      onAction={() => setSearchText(query)}
+                    />
+                    <Action
+                      title="Remove from History"
+                      icon={Icon.Trash}
+                      shortcut={{ modifiers: ["cmd"], key: "backspace" }}
+                      onAction={() => removeFromHistory(query)}
+                    />
+                  </ActionPanel>
+                }
+              />
+            ))}
+          </List.Section>
+          <List.Section>
+            <List.Item
+              title="Clear All History"
+              icon={Icon.Trash}
+              actions={
+                <ActionPanel>
+                  <Action title="Clear All History" icon={Icon.Trash} onAction={clearHistory} />
+                </ActionPanel>
+              }
+            />
+          </List.Section>
+          </>
+        )}
+      </List>
+    );
   }
 
   return (
@@ -515,10 +594,13 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
                       </ActionPanel.Section>
                     ) : (
                       <ActionPanel.Section title={card.name}>
-                        <Action.Push
+                        <Action
                           title="Show Card Details"
-                          target={<CardDetailView card={card} />}
                           icon={Icon.Eye}
+                          onAction={() => {
+                            saveToHistory(debouncedSearchText);
+                            push(<CardDetailView card={card} />);
+                          }}
                         />
                         <Action.OpenInBrowser
                           title="Open in Scryfall"
@@ -585,6 +667,16 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
                           icon={isSelected ? Icon.XMarkCircle : Icon.Checkmark}
                           shortcut={{ modifiers: ["cmd", "shift"], key: "s" }}
                           onAction={() => toggleSelect(card.id)}
+                        />
+                      </ActionPanel.Section>
+                    )}
+                    {(searchHistory ?? []).includes(debouncedSearchText.trim()) && (
+                      <ActionPanel.Section title="Search History">
+                        <Action
+                          title="Remove Search from History"
+                          icon={Icon.Trash}
+                          shortcut={{ modifiers: ["cmd"], key: "backspace" }}
+                          onAction={() => removeFromHistory(debouncedSearchText.trim())}
                         />
                       </ActionPanel.Section>
                     )}
