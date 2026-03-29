@@ -378,6 +378,7 @@ function CardDetailView({ card }: { card: Card }) {
 
 export default function Command({ initialSearch = "" }: { initialSearch?: string }) {
   const [searchText, setSearchText] = useState(initialSearch);
+  const [debouncedSearchText, setDebouncedSearchText] = useState(initialSearch);
   const [order, setOrder] = useState<SortOrder>("name");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { value: savedCards, setValue: setSavedCards } = useLocalStorage<Card[]>(SAVED_CARDS_KEY, []);
@@ -394,13 +395,18 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
   }
 
   useEffect(() => {
-    setSelectedIds(new Set());
+    const timer = setTimeout(() => setDebouncedSearchText(searchText), 200);
+    return () => clearTimeout(timer);
   }, [searchText]);
 
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [debouncedSearchText]);
+
   const { isLoading, data } = useFetch<ScryfallSearchResponse>(
-    `https://api.scryfall.com/cards/search?q=${encodeURIComponent(searchText)}&unique=cards`,
+    `https://api.scryfall.com/cards/search?q=${encodeURIComponent(debouncedSearchText)}&unique=cards`,
     {
-      execute: searchText.trim().length > 0,
+      execute: debouncedSearchText.trim().length > 0,
       keepPreviousData: true,
       onError: (err) => {
         const isNotFound = err.message.includes("404") || err.message.includes("No cards found");
@@ -408,7 +414,7 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
           console.error("[Scrycast] Search error:", err.message, "\nStack:", err.stack);
           showToast({ style: Toast.Style.Failure, title: "Search failed", message: err.message });
         } else {
-          console.log(`[Scrycast] No results for query: "${searchText}"`);
+          console.log(`[Scrycast] No results for query: "${debouncedSearchText}"`);
         }
       },
     }
@@ -417,7 +423,7 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
   const cards = useMemo(() => sortCards(data?.data ?? [], order), [data, order]);
 
   const hasResults = cards.length > 0;
-  const isSearching = isLoading && searchText.trim().length > 0 && !hasResults;
+  const isSearching = isLoading && debouncedSearchText.trim().length > 0 && !hasResults;
   const selectedCards = cards.filter((c) => selectedIds.has(c.id));
   const isMultiSelect = selectedIds.size >= 1;
 
@@ -440,7 +446,6 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
       searchText={searchText}
       onSearchTextChange={setSearchText}
       searchBarPlaceholder='Search cards — try "t:creature c:red cmc<=3" or just a card name'
-      throttle
       searchBarAccessory={
         <Grid.Dropdown tooltip="Sort Order" value={order} onChange={(v) => setOrder(v as SortOrder)}>
           <Grid.Dropdown.Item title="Name (A → Z)" value="name" />
@@ -450,14 +455,14 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
       }
     >
       {isSearching ? (
-        <Grid.EmptyView icon="🧙" title="Searching…" description={`Looking up "${searchText}"`} />
+        <Grid.EmptyView icon="🧙" title="Searching…" description={`Looking up "${debouncedSearchText}"`} />
       ) : !hasResults ? (
         <Grid.EmptyView
           icon="🧙"
-          title={searchText.trim() ? "No Cards Found" : "Search Scryfall"}
+          title={debouncedSearchText.trim() ? "No Cards Found" : "Search Scryfall"}
           description={
-            searchText.trim()
-              ? `No cards match "${searchText}". Try different Scryfall syntax.`
+            debouncedSearchText.trim()
+              ? `No cards match "${debouncedSearchText}". Try different Scryfall syntax.`
               : 'Type a card name or Scryfall syntax to find cards — e.g. "t:dragon pow>=5"'
           }
         />
