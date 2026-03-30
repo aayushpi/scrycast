@@ -485,7 +485,7 @@ if (historySavedForQuery.current) return;
                     <Action
                       title="Search Again"
                       icon={Icon.MagnifyingGlass}
-                      onAction={() => setSearchText(query)}
+                      onAction={() => push(<Command initialSearch={query} />)}
                     />
                     <Action
                       title="Remove from History"
