@@ -17,6 +17,8 @@ declare namespace Preferences {
   export type Index = ExtensionPreferences & {}
   /** Preferences accessible in the `saved-cards` command */
   export type SavedCards = ExtensionPreferences & {}
+  /** Preferences accessible in the `my-collection` command */
+  export type MyCollection = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
@@ -24,5 +26,7 @@ declare namespace Arguments {
   export type Index = {}
   /** Arguments passed to the `saved-cards` command */
   export type SavedCards = {}
+  /** Arguments passed to the `my-collection` command */
+  export type MyCollection = {}
 }
 

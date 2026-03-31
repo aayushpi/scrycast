@@ -5,6 +5,7 @@ import { useFetch, usePromise, useLocalStorage } from "@raycast/utils";
 import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { COLLECTION_IDS_KEY, COLLECTION_NAMES_KEY } from "./collection";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -388,6 +389,10 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
   const { value: savedCards, setValue: setSavedCards } = useLocalStorage<Card[]>(SAVED_CARDS_KEY, []);
   const savedCardIds = useMemo(() => new Set((savedCards ?? []).map((c) => c.id)), [savedCards]);
   const { value: searchHistory, setValue: setSearchHistory } = useLocalStorage<string[]>(SEARCH_HISTORY_KEY, []);
+  const { value: collectionIds } = useLocalStorage<string[]>(COLLECTION_IDS_KEY, []);
+  const { value: collectionNames } = useLocalStorage<string[]>(COLLECTION_NAMES_KEY, []);
+  const collectionIdSet = useMemo(() => new Set(collectionIds ?? []), [collectionIds]);
+  const collectionNameSet = useMemo(() => new Set(collectionNames ?? []), [collectionNames]);
 
   function toggleSave(card: Card) {
     if (savedCardIds.has(card.id)) {
@@ -558,12 +563,14 @@ if (historySavedForQuery.current) return;
             const imageUri = getCardImageUri(card);
             const isSelected = selectedIds.has(card.id);
             const isSaved = savedCardIds.has(card.id);
+            const exactMatch = collectionIdSet.has(card.id);
+            const nameMatch = !exactMatch && collectionNameSet.has(card.name);
 
             return (
               <Grid.Item
                 key={card.id}
                 content={{ source: imageUri }}
-                title={isSelected ? `✓ ${card.name}` : card.name}
+                title={`${isSelected ? "✓ " : ""}${exactMatch ? "✅ " : nameMatch ? "☑️ " : ""}${card.name}`}
                 subtitle={card.set_name}
                 actions={
                   <ActionPanel>
