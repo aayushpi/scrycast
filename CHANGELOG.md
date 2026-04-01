@@ -1,3 +1,14 @@
+## [Unreleased] - {PR_MERGE_DATE}
+
+### Added
+- Search My Collection command — import your ManaBox CSV and browse or search your personal card collection
+- Collection indicators in Search Cards — ✅ for exact printing owned, ☑️ for a different printing owned
+
+### Changed
+- "Saved Cards" renamed to "Bookmarked Cards"; "Save Card" action renamed to "Bookmark Card"
+- Collection browse defaults to most expensive cards first
+- Collection stats show total copies and set count
+
 ## [Initial Release] - 2026-03-26
 
 ### Added

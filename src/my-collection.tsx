@@ -16,7 +16,13 @@ import { useFetch, useLocalStorage } from "@raycast/utils";
 import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseCollectionCSVWithStats, COLLECTION_IDS_KEY, COLLECTION_NAMES_KEY, COLLECTION_STATS_KEY, CollectionStats } from "./collection";
+import {
+  parseCollectionCSVWithStats,
+  COLLECTION_IDS_KEY,
+  COLLECTION_NAMES_KEY,
+  COLLECTION_STATS_KEY,
+  CollectionStats,
+} from "./collection";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,7 +81,11 @@ async function copyCardImage(imageUri: string): Promise<void> {
 }
 
 function getEdhrecUrl(cardName: string): string {
-  return `https://edhrec.com/cards/${cardName.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim().replace(/\s+/g, "-")}`;
+  return `https://edhrec.com/cards/${cardName
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")}`;
 }
 
 function formatStats(stats: CollectionStats): string {
@@ -145,12 +155,7 @@ function ImportCSVView({
         title="How to export from ManaBox"
         text="In ManaBox: tap ··· → Export → CSV. Then select that file above."
       />
-      {existingStats && (
-        <Form.Description
-          title="Current Collection"
-          text={formatStats(existingStats)}
-        />
-      )}
+      {existingStats && <Form.Description title="Current Collection" text={formatStats(existingStats)} />}
     </Form>
   );
 }
@@ -217,7 +222,11 @@ function CollectionGrid({
 
   const cards = useMemo(() => {
     if (isSearchMode) return (searchData?.data ?? []).filter((c) => collectionIdSet.has(c.id));
-    return browseData?.data ?? [];
+    return [...(browseData?.data ?? [])].sort((a, b) => {
+      const pa = parseFloat(a.prices?.usd ?? a.prices?.usd_foil ?? "0");
+      const pb = parseFloat(b.prices?.usd ?? b.prices?.usd_foil ?? "0");
+      return pb - pa;
+    });
   }, [isSearchMode, searchData, browseData, collectionIdSet]);
 
   const isLoading = isSearchMode ? isSearchLoading : isBrowseLoading;
@@ -245,17 +254,9 @@ function CollectionGrid({
       {!hasResults ? (
         <Grid.EmptyView
           icon="🧙"
-          title={
-            isSearchMode
-              ? "Not in Collection"
-              : isLoading
-              ? "Loading your collection…"
-              : "Collection is empty"
-          }
+          title={isSearchMode ? "Not in Collection" : isLoading ? "Loading your collection…" : "Collection is empty"}
           description={
-            isSearchMode
-              ? `No cards matching "${debouncedSearch}" found in your collection\n${statsLine}`
-              : statsLine
+            isSearchMode ? `No cards matching "${debouncedSearch}" found in your collection\n${statsLine}` : statsLine
           }
           actions={
             <ActionPanel>
@@ -345,11 +346,7 @@ function CollectionGrid({
                       />
                     </ActionPanel.Section>
                     <ActionPanel.Section title="Feedback">
-                      <Action.OpenInBrowser
-                        title="Submit Bug or Feature Request"
-                        url={FEEDBACK_URL}
-                        icon={Icon.Bug}
-                      />
+                      <Action.OpenInBrowser title="Submit Bug or Feature Request" url={FEEDBACK_URL} icon={Icon.Bug} />
                     </ActionPanel.Section>
                   </ActionPanel>
                 }
@@ -365,11 +362,17 @@ function CollectionGrid({
 // ─── Main Command ─────────────────────────────────────────────────────────────
 
 export default function Command() {
-  const { value: collectionIds, setValue: setCollectionIds, isLoading: isIdsLoading } =
-    useLocalStorage<string[]>(COLLECTION_IDS_KEY, []);
+  const {
+    value: collectionIds,
+    setValue: setCollectionIds,
+    isLoading: isIdsLoading,
+  } = useLocalStorage<string[]>(COLLECTION_IDS_KEY, []);
   const { setValue: setCollectionNames } = useLocalStorage<string[]>(COLLECTION_NAMES_KEY, []);
-  const { value: collectionStats, setValue: setCollectionStats, isLoading: isStatsLoading } =
-    useLocalStorage<CollectionStats | null>(COLLECTION_STATS_KEY, null);
+  const {
+    value: collectionStats,
+    setValue: setCollectionStats,
+    isLoading: isStatsLoading,
+  } = useLocalStorage<CollectionStats | null>(COLLECTION_STATS_KEY, null);
 
   const isLoading = isIdsLoading || isStatsLoading;
   const hasCollection = (collectionIds ?? []).length > 0;

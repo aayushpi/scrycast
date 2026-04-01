@@ -1,4 +1,16 @@
-import { Grid, List, Detail, ActionPanel, Action, showToast, Toast, Color, Icon, Clipboard, useNavigation } from "@raycast/api";
+import {
+  Grid,
+  List,
+  Detail,
+  ActionPanel,
+  Action,
+  showToast,
+  Toast,
+  Color,
+  Icon,
+  Clipboard,
+  useNavigation,
+} from "@raycast/api";
 import { PrintsView } from "./card-views";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useFetch, usePromise, useLocalStorage } from "@raycast/utils";
@@ -118,7 +130,11 @@ const SEARCH_HISTORY_KEY = "searchHistory";
 const MAX_HISTORY = 15;
 
 function getEdhrecUrl(cardName: string): string {
-  return `https://edhrec.com/cards/${cardName.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim().replace(/\s+/g, "-")}`;
+  return `https://edhrec.com/cards/${cardName
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")}`;
 }
 
 // ─── Tagger API ───────────────────────────────────────────────────────────────
@@ -260,11 +276,7 @@ function CardTagsView({ card }: { card: Card }) {
               shortcut={{ modifiers: ["cmd"], key: "t" }}
             />
             <ActionPanel.Section title="Feedback">
-              <Action.OpenInBrowser
-                title="Submit Bug or Feature Request"
-                url={FEEDBACK_URL}
-                icon={Icon.Bug}
-              />
+              <Action.OpenInBrowser title="Submit Bug or Feature Request" url={FEEDBACK_URL} icon={Icon.Bug} />
             </ActionPanel.Section>
           </ActionPanel>
         }
@@ -275,11 +287,7 @@ function CardTagsView({ card }: { card: Card }) {
   return (
     <List navigationTitle={`${card.name} — Tags`} isLoading={isLoading} isShowingDetail>
       {!isLoading && error && (
-        <List.EmptyView
-          icon={Icon.ExclamationMark}
-          title="Could Not Load Tags"
-          description={error.message}
-        />
+        <List.EmptyView icon={Icon.ExclamationMark} title="Could Not Load Tags" description={error.message} />
       )}
       {!isLoading && !error && taggings?.length === 0 && (
         <List.EmptyView icon="🧙" title="No Tags Found" description="This card has no tagger entries yet." />
@@ -303,13 +311,19 @@ function CardDetailView({ card }: { card: Card }) {
   const imageUri = getCardImageUri(card, "large");
 
   const oracleText =
-    card.oracle_text ??
-    card.card_faces?.map((f) => `<strong>${f.name}</strong>\n${f.oracle_text ?? ""}`).join("\n");
+    card.oracle_text ?? card.card_faces?.map((f) => `<strong>${f.name}</strong>\n${f.oracle_text ?? ""}`).join("\n");
   const flavorText =
     card.flavor_text ??
-    card.card_faces?.map((f) => f.flavor_text).filter(Boolean).join(" // ");
+    card.card_faces
+      ?.map((f) => f.flavor_text)
+      .filter(Boolean)
+      .join(" // ");
   const manaCost =
-    card.mana_cost ?? card.card_faces?.map((f) => f.mana_cost).filter(Boolean).join(" // ");
+    card.mana_cost ??
+    card.card_faces
+      ?.map((f) => f.mana_cost)
+      .filter(Boolean)
+      .join(" // ");
 
   const markdown = `<img src="${imageUri}" width="504" />`;
   const oracleLines = oracleText?.split("\n").filter(Boolean) ?? [];
@@ -400,7 +414,7 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
       showToast({ style: Toast.Style.Success, title: "Removed from Saved" });
     } else {
       setSavedCards([...(savedCards ?? []), card]);
-      showToast({ style: Toast.Style.Success, title: "Card Saved" });
+      showToast({ style: Toast.Style.Success, title: "Card Bookmarked" });
     }
   }
 
@@ -442,7 +456,7 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
   const cards = useMemo(() => sortCards(data?.data ?? [], order), [data, order]);
 
   function saveToHistory(query: string) {
-if (historySavedForQuery.current) return;
+    if (historySavedForQuery.current) return;
     const q = query.trim();
     if (!q) return;
     historySavedForQuery.current = true;
@@ -479,41 +493,41 @@ if (historySavedForQuery.current) return;
           />
         ) : (
           <>
-          <List.Section title="Recent Searches">
-            {(searchHistory ?? []).map((query) => (
+            <List.Section title="Recent Searches">
+              {(searchHistory ?? []).map((query) => (
+                <List.Item
+                  key={query}
+                  title={query}
+                  icon={Icon.Clock}
+                  actions={
+                    <ActionPanel>
+                      <Action
+                        title="Search Again"
+                        icon={Icon.MagnifyingGlass}
+                        onAction={() => push(<Command initialSearch={query} />)}
+                      />
+                      <Action
+                        title="Remove from History"
+                        icon={Icon.Trash}
+                        shortcut={{ modifiers: ["cmd"], key: "backspace" }}
+                        onAction={() => removeFromHistory(query)}
+                      />
+                    </ActionPanel>
+                  }
+                />
+              ))}
+            </List.Section>
+            <List.Section>
               <List.Item
-                key={query}
-                title={query}
-                icon={Icon.Clock}
+                title="Clear All History"
+                icon={Icon.Trash}
                 actions={
                   <ActionPanel>
-                    <Action
-                      title="Search Again"
-                      icon={Icon.MagnifyingGlass}
-                      onAction={() => push(<Command initialSearch={query} />)}
-                    />
-                    <Action
-                      title="Remove from History"
-                      icon={Icon.Trash}
-                      shortcut={{ modifiers: ["cmd"], key: "backspace" }}
-                      onAction={() => removeFromHistory(query)}
-                    />
+                    <Action title="Clear All History" icon={Icon.Trash} onAction={clearHistory} />
                   </ActionPanel>
                 }
               />
-            ))}
-          </List.Section>
-          <List.Section>
-            <List.Item
-              title="Clear All History"
-              icon={Icon.Trash}
-              actions={
-                <ActionPanel>
-                  <Action title="Clear All History" icon={Icon.Trash} onAction={clearHistory} />
-                </ActionPanel>
-              }
-            />
-          </List.Section>
+            </List.Section>
           </>
         )}
       </List>
@@ -646,7 +660,7 @@ if (historySavedForQuery.current) return;
                           }}
                         />
                         <Action
-                          title={isSaved ? "Remove from Saved" : "Save Card"}
+                          title={isSaved ? "Remove from Bookmarks" : "Bookmark Card"}
                           icon={isSaved ? Icon.StarDisabled : Icon.Star}
                           shortcut={{ modifiers: ["cmd"], key: "b" }}
                           onAction={() => toggleSave(card)}
@@ -665,7 +679,9 @@ if (historySavedForQuery.current) return;
                         />
                         <Action.Push
                           title="View All Prints"
-                          target={<PrintsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />}
+                          target={
+                            <PrintsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />
+                          }
                           icon={Icon.List}
                           shortcut={{ modifiers: ["cmd"], key: "p" }}
                         />
@@ -688,11 +704,7 @@ if (historySavedForQuery.current) return;
                       </ActionPanel.Section>
                     )}
                     <ActionPanel.Section title="Feedback">
-                      <Action.OpenInBrowser
-                        title="Submit Bug or Feature Request"
-                        url={FEEDBACK_URL}
-                        icon={Icon.Bug}
-                      />
+                      <Action.OpenInBrowser title="Submit Bug or Feature Request" url={FEEDBACK_URL} icon={Icon.Bug} />
                     </ActionPanel.Section>
                   </ActionPanel>
                 }

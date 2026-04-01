@@ -2,9 +2,9 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "scrycast",
   "title": "Scrycast",
-  "description": "Search Magic: The Gathering cards using Scryfall's powerful search syntax",
-  "icon": "extension-icon.png",
-  "author": "aayushiyer",
+  "description": "Search for Magic: The Gathering cards on Scryfall or your collection",
+  "icon": "scrycast.png",
+  "author": "aayushpi",
   "categories": [
     "Fun",
     "Other"
@@ -14,19 +14,21 @@
     {
       "name": "index",
       "title": "Search Cards",
-      "description": "Search Magic: The Gathering cards using Scryfall syntax",
+      "subtitle": "Search cards on Scryfall",
+      "description": "Search cards on Scryfall",
       "mode": "view"
     },
     {
       "name": "saved-cards",
-      "title": "View Saved Cards",
-      "description": "View your saved Magic: The Gathering cards",
+      "title": "Bookmarked Cards",
+      "subtitle": "View your bookmarked cards",
+      "description": "View your bookmarked cards",
       "mode": "view"
     },
     {
       "name": "my-collection",
-      "title": "My Collection",
-      "subtitle": "Browse your ManaBox collection",
+      "title": "Search My Collection",
+      "subtitle": "Import and search your personal collection",
       "description": "Import and browse your ManaBox card collection",
       "mode": "view"
     }

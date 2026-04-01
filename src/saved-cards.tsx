@@ -17,7 +17,7 @@ export default function SavedCards() {
 
   function removeCard(card: Card) {
     setSavedCards((savedCards ?? []).filter((c) => c.id !== card.id));
-    showToast({ style: Toast.Style.Success, title: "Removed from Saved" });
+    showToast({ style: Toast.Style.Success, title: "Removed from Bookmarks" });
   }
 
   return (
@@ -27,17 +27,15 @@ export default function SavedCards() {
       fit={Grid.Fit.Fill}
       inset={Grid.Inset.Small}
       isLoading={isLoading}
-      searchBarPlaceholder="Filter saved cards"
-      navigationTitle="Saved Cards"
+      searchBarPlaceholder="Filter bookmarked cards"
+      navigationTitle="Bookmarked Cards"
     >
       {!isLoading && (savedCards ?? []).length === 0 ? (
-        <Grid.EmptyView
-          icon="🧙"
-          title="No Saved Cards"
-          description="Save cards from Search Cards with ⌘⇧B"
-        />
+        <Grid.EmptyView icon="🧙" title="No Bookmarked Cards" description="Save cards from Search Cards with ⌘⇧B" />
       ) : (
-        <Grid.Section title={`${(savedCards ?? []).length} saved card${(savedCards ?? []).length !== 1 ? "s" : ""}`}>
+        <Grid.Section
+          title={`${(savedCards ?? []).length} bookmarked card${(savedCards ?? []).length !== 1 ? "s" : ""}`}
+        >
           {(savedCards ?? []).map((card) => {
             const imageUri = getCardImageUri(card);
             return (
@@ -51,7 +49,9 @@ export default function SavedCards() {
                     <ActionPanel.Section title={card.name}>
                       <Action.Push
                         title="Show Card Details"
-                        target={<CardDetailView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />}
+                        target={
+                          <CardDetailView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />
+                        }
                         icon={Icon.Eye}
                       />
                       <Action.OpenInBrowser
@@ -103,23 +103,23 @@ export default function SavedCards() {
                       />
                       <Action.Push
                         title="Show Tags"
-                        target={<CardTagsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />}
+                        target={
+                          <CardTagsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />
+                        }
                         icon={{ source: Icon.Tag, tintColor: Color.Purple }}
                         shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
                       />
                       <Action.Push
                         title="View All Prints"
-                        target={<PrintsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />}
+                        target={
+                          <PrintsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />
+                        }
                         icon={Icon.List}
                         shortcut={{ modifiers: ["cmd"], key: "p" }}
                       />
                     </ActionPanel.Section>
                     <ActionPanel.Section title="Feedback">
-                      <Action.OpenInBrowser
-                        title="Submit Bug or Feature Request"
-                        url={FEEDBACK_URL}
-                        icon={Icon.Bug}
-                      />
+                      <Action.OpenInBrowser title="Submit Bug or Feature Request" url={FEEDBACK_URL} icon={Icon.Bug} />
                     </ActionPanel.Section>
                   </ActionPanel>
                 }

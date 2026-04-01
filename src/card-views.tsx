@@ -294,7 +294,7 @@ export function PrintsView({ card, searchTagTarget }: PrintsViewProps) {
                         }}
                       />
                       <Action
-                        title={isSaved ? "Remove from Saved" : "Save Card"}
+                        title={isSaved ? "Remove from Bookmarks" : "Bookmark Card"}
                         icon={isSaved ? Icon.StarDisabled : Icon.Star}
                         shortcut={{ modifiers: ["cmd"], key: "b" }}
                         onAction={() => toggleSave(print)}
@@ -337,13 +337,19 @@ export function CardDetailView({ card, searchTagTarget }: CardDetailViewProps) {
   const imageUri = getCardImageUri(card, "large");
 
   const oracleText =
-    card.oracle_text ??
-    card.card_faces?.map((f) => `<strong>${f.name}</strong>\n${f.oracle_text ?? ""}`).join("\n");
+    card.oracle_text ?? card.card_faces?.map((f) => `<strong>${f.name}</strong>\n${f.oracle_text ?? ""}`).join("\n");
   const flavorText =
     card.flavor_text ??
-    card.card_faces?.map((f) => f.flavor_text).filter(Boolean).join(" // ");
+    card.card_faces
+      ?.map((f) => f.flavor_text)
+      .filter(Boolean)
+      .join(" // ");
   const manaCost =
-    card.mana_cost ?? card.card_faces?.map((f) => f.mana_cost).filter(Boolean).join(" // ");
+    card.mana_cost ??
+    card.card_faces
+      ?.map((f) => f.mana_cost)
+      .filter(Boolean)
+      .join(" // ");
 
   const markdown = `<img src="${imageUri}" width="504" />`;
   const oracleLines = oracleText?.split("\n").filter(Boolean) ?? [];

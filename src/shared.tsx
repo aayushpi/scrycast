@@ -74,7 +74,11 @@ export function getTaggerUrl(card: Card): string {
 }
 
 export function getEdhrecUrl(cardName: string): string {
-  return `https://edhrec.com/cards/${cardName.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim().replace(/\s+/g, "-")}`;
+  return `https://edhrec.com/cards/${cardName
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")}`;
 }
 
 export function scryfallMultiUrl(cards: Card[]): string {
