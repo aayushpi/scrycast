@@ -359,7 +359,7 @@ function CardDetailView({ card }: { card: Card }) {
             shortcut={{ modifiers: ["cmd"], key: "return" }}
           />
           <Action.OpenInBrowser
-            title="Open in EDHRec"
+            title="Open in Edhrec" // eslint-disable-line @raycast/prefer-title-case
             url={getEdhrecUrl(card.name)}
             icon={{ source: Icon.Person, tintColor: Color.Green }}
             shortcut={{ modifiers: ["cmd", "ctrl"], key: "return" }}
@@ -630,7 +630,7 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
                           shortcut={{ modifiers: ["cmd"], key: "return" }}
                         />
                         <Action.OpenInBrowser
-                          title="Open in EDHRec"
+                          title="Open in Edhrec" // eslint-disable-line @raycast/prefer-title-case
                           url={getEdhrecUrl(card.name)}
                           icon={{ source: Icon.Person, tintColor: Color.Green }}
                           shortcut={{ modifiers: ["cmd", "ctrl"], key: "return" }}

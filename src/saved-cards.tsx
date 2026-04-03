@@ -61,7 +61,7 @@ export default function SavedCards() {
                         shortcut={{ modifiers: ["cmd"], key: "return" }}
                       />
                       <Action.OpenInBrowser
-                        title="Open in EDHRec"
+                        title="Open in Edhrec" // eslint-disable-line @raycast/prefer-title-case
                         url={getEdhrecUrl(card.name)}
                         icon={{ source: Icon.Person, tintColor: Color.Green }}
                         shortcut={{ modifiers: ["cmd", "ctrl"], key: "return" }}

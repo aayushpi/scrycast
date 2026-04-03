@@ -144,7 +144,11 @@ export function CardTagsView({ card, searchTagTarget }: CardTagsViewProps) {
           <ActionPanel>
             {searchTagTarget ? (
               <>
-                <Action.Push title="Search This Tag" icon={Icon.MagnifyingGlass} target={searchTagTarget(query) as ReactNode} />
+                <Action.Push
+                  title="Search This Tag"
+                  icon={Icon.MagnifyingGlass}
+                  target={searchTagTarget(query) as ReactNode}
+                />
                 <Action.OpenInBrowser
                   title="Search This Tag on Scryfall"
                   icon={{ source: Icon.Globe, tintColor: Color.Blue }}
@@ -265,7 +269,7 @@ export function PrintsView({ card, searchTagTarget }: PrintsViewProps) {
                         shortcut={{ modifiers: ["cmd"], key: "return" }}
                       />
                       <Action.OpenInBrowser
-                        title="Open in EDHRec"
+                        title="Open in Edhrec" // eslint-disable-line @raycast/prefer-title-case
                         url={getEdhrecUrl(print.name)}
                         icon={{ source: Icon.Person, tintColor: Color.Green }}
                         shortcut={{ modifiers: ["cmd", "ctrl"], key: "return" }}
@@ -385,7 +389,7 @@ export function CardDetailView({ card, searchTagTarget }: CardDetailViewProps) {
             shortcut={{ modifiers: ["cmd"], key: "return" }}
           />
           <Action.OpenInBrowser
-            title="Open in EDHRec"
+            title="Open in Edhrec" // eslint-disable-line @raycast/prefer-title-case
             url={getEdhrecUrl(card.name)}
             icon={{ source: Icon.Person, tintColor: Color.Green }}
             shortcut={{ modifiers: ["cmd", "ctrl"], key: "return" }}

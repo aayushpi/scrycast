@@ -261,7 +261,7 @@ function CollectionGrid({
           actions={
             <ActionPanel>
               <Action
-                title="Import New CSV"
+                title="Import New Csv"
                 icon={Icon.Download}
                 onAction={() => push(<ImportCSVView onImport={onImport} existingStats={stats} />)}
               />
@@ -301,7 +301,7 @@ function CollectionGrid({
                         shortcut={{ modifiers: ["cmd"], key: "return" }}
                       />
                       <Action.OpenInBrowser
-                        title="Open in EDHRec"
+                        title="Open in Edhrec" // eslint-disable-line @raycast/prefer-title-case
                         url={getEdhrecUrl(card.name)}
                         icon={{ source: Icon.Person, tintColor: Color.Green }}
                         shortcut={{ modifiers: ["cmd", "ctrl"], key: "return" }}
@@ -332,7 +332,7 @@ function CollectionGrid({
                     </ActionPanel.Section>
                     <ActionPanel.Section title="Collection">
                       <Action
-                        title="Import New CSV"
+                        title="Import New Csv"
                         icon={Icon.Download}
                         shortcut={{ modifiers: ["cmd", "shift"], key: "i" }}
                         onAction={() => push(<ImportCSVView onImport={onImport} existingStats={stats} />)}
