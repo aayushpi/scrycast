@@ -1,6 +1,6 @@
 import { List, Detail, Grid, ActionPanel, Action, showToast, Toast, Color, Icon } from "@raycast/api";
 import { usePromise, useFetch, useLocalStorage } from "@raycast/utils";
-import { useMemo, type ReactElement } from "react";
+import { useMemo, type ReactNode } from "react";
 import {
   Card,
   FEEDBACK_URL,
@@ -100,7 +100,7 @@ function tagScryfallSearchUrl(type: string, name: string): string {
 export interface CardTagsViewProps {
   card: Card;
   // When provided, "Search This Tag" pushes in-app; otherwise opens Scryfall in browser.
-  searchTagTarget?: (query: string) => ReactElement;
+  searchTagTarget?: (query: string) => ReactNode;
 }
 
 function tagSearchQuery(type: string, name: string): string {
@@ -199,7 +199,7 @@ export function CardTagsView({ card, searchTagTarget }: CardTagsViewProps) {
 
 export interface PrintsViewProps {
   card: Card;
-  searchTagTarget?: (query: string) => ReactElement;
+  searchTagTarget?: (query: string) => ReactNode;
 }
 
 export function PrintsView({ card, searchTagTarget }: PrintsViewProps) {
@@ -330,7 +330,7 @@ export function PrintsView({ card, searchTagTarget }: PrintsViewProps) {
 
 export interface CardDetailViewProps {
   card: Card;
-  searchTagTarget?: (query: string) => ReactElement;
+  searchTagTarget?: (query: string) => ReactNode;
 }
 
 export function CardDetailView({ card, searchTagTarget }: CardDetailViewProps) {
