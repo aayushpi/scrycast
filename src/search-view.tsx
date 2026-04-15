@@ -393,11 +393,11 @@ function CardDetailView({ card }: { card: Card }) {
 
 // ─── Main Search View ─────────────────────────────────────────────────────────
 
-export default function Command({ initialSearch = "" }: { initialSearch?: string }) {
+export default function Command({ initialSearch = "", initialOrder = "name" }: { initialSearch?: string; initialOrder?: SortOrder }) {
   const { push } = useNavigation();
   const [searchText, setSearchText] = useState(initialSearch);
   const [debouncedSearchText, setDebouncedSearchText] = useState(initialSearch);
-  const [order, setOrder] = useState<SortOrder>("name");
+  const [order, setOrder] = useState<SortOrder>(initialOrder);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const historySavedForQuery = useRef(false);
   const { value: savedCards, setValue: setSavedCards } = useLocalStorage<Card[]>(SAVED_CARDS_KEY, []);
@@ -536,7 +536,7 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
 
   return (
     <Grid
-      columns={3}
+      columns={4}
       aspectRatio="2/3"
       fit={Grid.Fit.Fill}
       inset={Grid.Inset.Small}
@@ -683,7 +683,7 @@ export default function Command({ initialSearch = "" }: { initialSearch?: string
                             <PrintsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />
                           }
                           icon={Icon.List}
-                          shortcut={{ modifiers: ["cmd"], key: "p" }}
+                          shortcut={{ modifiers: ["cmd", "shift"], key: "p" }}
                         />
                         <Action
                           title={isSelected ? "Deselect Card" : "Select Card"}

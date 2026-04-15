@@ -242,7 +242,7 @@ function CollectionGrid({
 
   return (
     <Grid
-      columns={3}
+      columns={4}
       aspectRatio="2/3"
       fit={Grid.Fit.Fill}
       inset={Grid.Inset.Small}
