@@ -1,4 +1,4 @@
-import { Grid, ActionPanel, Action, showToast, Toast, Color, Icon } from "@raycast/api";
+import { Grid, ActionPanel, Action, showToast, Toast, Color, Icon, Clipboard } from "@raycast/api";
 import { useLocalStorage } from "@raycast/utils";
 import {
   Card,
@@ -22,7 +22,7 @@ export default function SavedCards() {
 
   return (
     <Grid
-      columns={3}
+      columns={4}
       aspectRatio="2/3"
       fit={Grid.Fit.Fill}
       inset={Grid.Inset.Small}
@@ -115,7 +115,19 @@ export default function SavedCards() {
                           <PrintsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />
                         }
                         icon={Icon.List}
-                        shortcut={{ modifiers: ["cmd"], key: "p" }}
+                        shortcut={{ modifiers: ["cmd", "shift"], key: "p" }}
+                      />
+                    </ActionPanel.Section>
+                    <ActionPanel.Section title="All Bookmarked Cards">
+                      <Action
+                        title="Copy All Cards to Clipboard"
+                        icon={Icon.CopyClipboard}
+                        shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
+                        onAction={async () => {
+                          const names = (savedCards ?? []).map((c) => c.name).join("\n");
+                          await Clipboard.copy(names);
+                          showToast({ style: Toast.Style.Success, title: "Copied all card names" });
+                        }}
                       />
                     </ActionPanel.Section>
                     <ActionPanel.Section title="Feedback">

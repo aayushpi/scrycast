@@ -94,8 +94,8 @@ export function sortCards(cards: Card[], order: SortOrder): Card[] {
       const rb = b.edhrec_rank ?? Infinity;
       return ra - rb;
     }
-    const pa = parseFloat(a.prices?.usd ?? "-1");
-    const pb = parseFloat(b.prices?.usd ?? "-1");
+    const pa = Math.max(parseFloat(a.prices?.usd ?? "0"), parseFloat(a.prices?.usd_foil ?? "0"));
+    const pb = Math.max(parseFloat(b.prices?.usd ?? "0"), parseFloat(b.prices?.usd_foil ?? "0"));
     return pb - pa;
   });
 }
