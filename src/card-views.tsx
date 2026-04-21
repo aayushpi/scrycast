@@ -145,11 +145,7 @@ export function CardTagsView({ card, searchTagTarget }: CardTagsViewProps) {
           <ActionPanel>
             {searchTagTarget ? (
               <>
-                <Action.Push
-                  title="Search This Tag"
-                  icon={Icon.MagnifyingGlass}
-                  target={searchTagTarget(query)}
-                />
+                <Action.Push title="Search This Tag" icon={Icon.MagnifyingGlass} target={searchTagTarget(query)} />
                 <Action.OpenInBrowser
                   title="Search This Tag on Scryfall"
                   icon={{ source: Icon.Globe, tintColor: Color.Blue }}
