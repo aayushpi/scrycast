@@ -21,6 +21,8 @@ declare namespace Preferences {
   export type MyCollection = ExtensionPreferences & {}
   /** Preferences accessible in the `browse-sets` command */
   export type BrowseSets = ExtensionPreferences & {}
+  /** Preferences accessible in the `browse-decks` command */
+  export type BrowseDecks = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
@@ -32,5 +34,7 @@ declare namespace Arguments {
   export type MyCollection = {}
   /** Arguments passed to the `browse-sets` command */
   export type BrowseSets = {}
+  /** Arguments passed to the `browse-decks` command */
+  export type BrowseDecks = {}
 }
 

@@ -81,7 +81,10 @@ export function startCoverFetch(codes: string[], cached: Set<string>): void {
     let i = 0;
     for (const code of pending) {
       i++;
-      if (cancelled) { console.log(`[CoverFetcher] cancelled at iteration ${i}/${pending.length} (${code})`); break; }
+      if (cancelled) {
+        console.log(`[CoverFetcher] cancelled at iteration ${i}/${pending.length} (${code})`);
+        break;
+      }
       let retries = 0;
       while (!cancelled) {
         try {
@@ -124,10 +127,14 @@ export function startCoverFetch(codes: string[], cached: Set<string>): void {
 }
 
 /** Pause the loop while the user is browsing a set. */
-export function pauseCoverFetch(): void { paused = true; }
+export function pauseCoverFetch(): void {
+  paused = true;
+}
 
 /** Resume after returning from a set view. */
-export function resumeCoverFetch(): void { paused = false; }
+export function resumeCoverFetch(): void {
+  paused = false;
+}
 
 /** Clear fetched-codes memory and cancel any running loop (e.g. after clearing the cache). */
 export function resetFetchedCodes(): void {

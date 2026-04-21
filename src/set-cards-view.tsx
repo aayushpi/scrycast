@@ -48,10 +48,7 @@ function isReleased(releasedAt: string): boolean {
 
 // ─── Fetch with retry on 429 ──────────────────────────────────────────────────
 
-type FetchResult =
-  | { type: "ok"; response: Response }
-  | { type: "inactive" }
-  | { type: "rate_limited" };
+type FetchResult = { type: "ok"; response: Response } | { type: "inactive" } | { type: "rate_limited" };
 
 async function fetchWithRetry(url: string, active: () => boolean): Promise<FetchResult> {
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -73,7 +70,15 @@ async function fetchWithRetry(url: string, active: () => boolean): Promise<Fetch
 
 // ─── Set Cards View ───────────────────────────────────────────────────────────
 
-export function SetCardsView({ setCode, setName, releasedAt }: { setCode: string; setName: string; releasedAt: string }) {
+export function SetCardsView({
+  setCode,
+  setName,
+  releasedAt,
+}: {
+  setCode: string;
+  setName: string;
+  releasedAt: string;
+}) {
   const { push } = useNavigation();
   const mounted = useRef(false);
 
@@ -85,7 +90,9 @@ export function SetCardsView({ setCode, setName, releasedAt }: { setCode: string
   }
 
   useEffect(() => {
-    return () => { resumeCoverFetch(); };
+    return () => {
+      resumeCoverFetch();
+    };
   }, []);
 
   const [filterText, setFilterText] = useState("");
@@ -96,6 +103,16 @@ export function SetCardsView({ setCode, setName, releasedAt }: { setCode: string
   const [totalCards, setTotalCards] = useState<number | undefined>();
   const [rateLimited, setRateLimited] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
+
+  function toggleFlip(id: string) {
+    setFlippedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const { value: savedCards, setValue: setSavedCards } = useLocalStorage<Card[]>(SAVED_CARDS_KEY, []);
   const savedCardIds = useMemo(() => new Set((savedCards ?? []).map((c) => c.id)), [savedCards]);
@@ -145,7 +162,10 @@ export function SetCardsView({ setCode, setName, releasedAt }: { setCode: string
         const result = await fetchWithRetry(baseUrl, isActive);
         if (result.type === "inactive") return;
         if (result.type === "rate_limited") {
-          if (active) { setIsLoading(false); setRateLimited(true); }
+          if (active) {
+            setIsLoading(false);
+            setRateLimited(true);
+          }
           return;
         }
         const res = result.response;
@@ -156,7 +176,9 @@ export function SetCardsView({ setCode, setName, releasedAt }: { setCode: string
           return;
         }
         page1 = (await res.json()) as ScryfallSearchResponse;
-        console.log(`[SetCardsView] page 1 — ${page1.data.length}/${page1.total_cards} cards, has_more: ${page1.has_more}`);
+        console.log(
+          `[SetCardsView] page 1 — ${page1.data.length}/${page1.total_cards} cards, has_more: ${page1.has_more}`
+        );
       } catch (e) {
         console.log(`[SetCardsView] page 1 fetch error: ${(e as Error).message}`);
         if (active) setIsLoading(false);
@@ -183,7 +205,10 @@ export function SetCardsView({ setCode, setName, releasedAt }: { setCode: string
           try {
             const result = await fetchWithRetry(`${baseUrl}&page=${page}`, isActive);
             if (result.type !== "ok") return [];
-            if (!result.response.ok) { console.log(`[SetCardsView] page ${page} error ${result.response.status}`); return []; }
+            if (!result.response.ok) {
+              console.log(`[SetCardsView] page ${page} error ${result.response.status}`);
+              return [];
+            }
             const json = (await result.response.json()) as ScryfallSearchResponse;
             console.log(`[SetCardsView] page ${page} — ${json.data.length} cards`);
             return json.data;
@@ -204,7 +229,9 @@ export function SetCardsView({ setCode, setName, releasedAt }: { setCode: string
     }
 
     fetchAll();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [query, retryCount]);
 
   const cards = useMemo(() => sortCards(fetchedCards, order), [fetchedCards, order]);
@@ -225,7 +252,7 @@ export function SetCardsView({ setCode, setName, releasedAt }: { setCode: string
 
   return (
     <Grid
-      columns={4}
+      columns={3}
       aspectRatio="2/3"
       fit={Grid.Fit.Fill}
       inset={Grid.Inset.Small}
@@ -254,7 +281,10 @@ export function SetCardsView({ setCode, setName, releasedAt }: { setCode: string
               <Action
                 title="Retry"
                 icon={Icon.ArrowClockwise}
-                onAction={() => { setRateLimited(false); setRetryCount((n) => n + 1); }}
+                onAction={() => {
+                  setRateLimited(false);
+                  setRetryCount((n) => n + 1);
+                }}
               />
             </ActionPanel>
           }
@@ -263,7 +293,9 @@ export function SetCardsView({ setCode, setName, releasedAt }: { setCode: string
         <Grid.EmptyView
           icon="🧙"
           title="No Cards Found"
-          description={filterText.trim() ? `No cards in ${setName} match "${filterText}".` : `No cards found in ${setName}.`}
+          description={
+            filterText.trim() ? `No cards in ${setName} match "${filterText}".` : `No cards found in ${setName}.`
+          }
         />
       ) : (
         <Grid.Section
@@ -274,7 +306,10 @@ export function SetCardsView({ setCode, setName, releasedAt }: { setCode: string
           }
         >
           {cards.map((card) => {
-            const imageUri = getCardImageUri(card);
+            const isDFC = (card.card_faces?.length ?? 0) >= 2;
+            const faceIndex = isDFC && flippedCards.has(card.id) ? 1 : 0;
+            const activeFace = isDFC ? card.card_faces![faceIndex] : null;
+            const imageUri = activeFace?.image_uris?.png ?? getCardImageUri(card);
             const isSaved = savedCardIds.has(card.id);
             const exactMatch = collectionIdSet.has(card.id);
             const nameMatch = !exactMatch && collectionNameSet.has(card.name);
@@ -284,16 +319,29 @@ export function SetCardsView({ setCode, setName, releasedAt }: { setCode: string
               <Grid.Item
                 key={card.id}
                 content={{ source: imageUri }}
-                title={`${exactMatch ? "✅ " : nameMatch ? "☑️ " : ""}${card.name}`}
+                title={`${isSaved ? "🔖 " : ""}${exactMatch ? "✅ " : nameMatch ? "☑️ " : ""}${card.name}`}
                 subtitle={price}
                 actions={
                   <ActionPanel>
                     <ActionPanel.Section title={card.name}>
+                      {isDFC && (
+                        <Action
+                          title={`Flip to ${card.card_faces![faceIndex === 0 ? 1 : 0].name}`}
+                          icon={Icon.ArrowClockwise}
+                          shortcut={{ modifiers: ["cmd"], key: "f" }}
+                          onAction={() => toggleFlip(card.id)}
+                        />
+                      )}
                       <Action
                         title="Show Card Details"
                         icon={Icon.Eye}
                         onAction={() =>
-                          push(<CardDetailView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />)
+                          push(
+                            <CardDetailView
+                              card={card}
+                              searchTagTarget={(query) => <Command initialSearch={query} />}
+                            />
+                          )
                         }
                       />
                       <Action.OpenInBrowser
@@ -345,13 +393,17 @@ export function SetCardsView({ setCode, setName, releasedAt }: { setCode: string
                       />
                       <Action.Push
                         title="Show Tags"
-                        target={<CardTagsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />}
+                        target={
+                          <CardTagsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />
+                        }
                         icon={{ source: Icon.Tag, tintColor: Color.Purple }}
                         shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
                       />
                       <Action.Push
                         title="View All Prints"
-                        target={<PrintsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />}
+                        target={
+                          <PrintsView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />
+                        }
                         icon={Icon.List}
                         shortcut={{ modifiers: ["cmd", "shift"], key: "p" }}
                       />

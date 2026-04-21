@@ -22,7 +22,7 @@ export default function SavedCards() {
 
   return (
     <Grid
-      columns={4}
+      columns={3}
       aspectRatio="2/3"
       fit={Grid.Fit.Fill}
       inset={Grid.Inset.Small}

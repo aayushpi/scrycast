@@ -68,7 +68,7 @@ interface ScryfallSearchResponse {
 function getCardImageUri(card: Card, size: keyof ImageUris = "png"): string {
   if (card.image_uris?.[size]) return card.image_uris[size];
   if (card.card_faces?.[0]?.image_uris?.[size]) return card.card_faces[0].image_uris[size];
-  return card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal ?? "";
+  return card.image_uris?.png ?? card.card_faces?.[0]?.image_uris?.png ?? "";
 }
 
 async function copyCardImage(imageUri: string): Promise<void> {
@@ -177,6 +177,8 @@ function CollectionGrid({
   const [searchText, setSearchText] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const collectionIdSet = useMemo(() => new Set(collectionIds), [collectionIds]);
+  const { value: savedCards } = useLocalStorage<{ id: string }[]>("savedCards", []);
+  const savedCardIds = useMemo(() => new Set((savedCards ?? []).map((c) => c.id)), [savedCards]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchText), 200);
@@ -242,7 +244,7 @@ function CollectionGrid({
 
   return (
     <Grid
-      columns={4}
+      columns={3}
       aspectRatio="2/3"
       fit={Grid.Fit.Fill}
       inset={Grid.Inset.Small}
@@ -285,11 +287,12 @@ function CollectionGrid({
         >
           {cards.map((card) => {
             const imageUri = getCardImageUri(card);
+            const isSaved = savedCardIds.has(card.id);
             return (
               <Grid.Item
                 key={card.id}
                 content={{ source: imageUri }}
-                title={card.name}
+                title={`${isSaved ? "🔖 " : ""}${card.name}`}
                 subtitle={card.set_name}
                 actions={
                   <ActionPanel>

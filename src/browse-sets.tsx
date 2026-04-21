@@ -73,8 +73,12 @@ function SetGridItem({ set, topCard, onCardFetched, onCardCleared, onAllCleared 
     push(<SetCardsView setCode={set.code} setName={set.name} releasedAt={set.released_at ?? ""} />);
     if (!topCard) {
       fetchMostExpensiveCard(set.code)
-        .then((card) => { if (card) onCardFetched(set.code, card); })
-        .catch(() => { /* ignore */ });
+        .then((card) => {
+          if (card) onCardFetched(set.code, card);
+        })
+        .catch(() => {
+          /* ignore */
+        });
     }
   }
 
@@ -83,7 +87,9 @@ function SetGridItem({ set, topCard, onCardFetched, onCardCleared, onAllCleared 
     try {
       const card = await fetchMostExpensiveCard(set.code);
       if (card) onCardFetched(set.code, card);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   return (
@@ -133,7 +139,10 @@ function SetGridItem({ set, topCard, onCardFetched, onCardCleared, onAllCleared 
 export default function BrowseSets() {
   const [searchText, setSearchText] = useState("");
   const [setFilter, setSetFilter] = useState<SetFilter>("main");
-  const { value: persistedCards, setValue: setPersistedCards } = useLocalStorage<Record<string, Card>>(SET_TOP_CARDS_KEY, {});
+  const { value: persistedCards, setValue: setPersistedCards } = useLocalStorage<Record<string, Card>>(
+    SET_TOP_CARDS_KEY,
+    {}
+  );
   const [liveCards, setLiveCards] = useState<Record<string, Card>>({});
   const [fetchTrigger, setFetchTrigger] = useState(0);
 
@@ -160,7 +169,9 @@ export default function BrowseSets() {
   // Keep a stable ref to persistedCards so onCard always merges into the latest snapshot.
   // Initialize to undefined so the fetch effect knows when storage has actually loaded.
   const persistedCardsRef = useRef<Record<string, Card> | undefined>(undefined);
-  useEffect(() => { persistedCardsRef.current = persistedCards; }, [persistedCards]);
+  useEffect(() => {
+    persistedCardsRef.current = persistedCards;
+  }, [persistedCards]);
 
   // Update module-level callbacks on every render so the loop always calls the
   // current component's state setters — even after a Strict Mode remount.
@@ -171,7 +182,9 @@ export default function BrowseSets() {
       setPersistedCards(persistedCardsRef.current);
       setLiveCards((prev) => ({ ...prev, [code]: card }));
     },
-    () => { /* persistence already handled per-card in onCard */ }
+    () => {
+      /* persistence already handled per-card in onCard */
+    }
   );
 
   const storageLoaded = persistedCards !== undefined;
@@ -180,20 +193,10 @@ export default function BrowseSets() {
   // Gate on storageLoaded so we never pass an empty cached set while localStorage
   // is still reading from disk — which caused already-persisted covers to be re-fetched.
   useEffect(() => {
-    console.log(`[BrowseSets] effect fired — allSets.length: ${allSets.length}, setFilter: ${setFilter}, fetchTrigger: ${fetchTrigger}, storageLoaded: ${storageLoaded}`);
     if (allSets.length === 0 || !storageLoaded) return;
-
-    const cached = new Set([
-      ...Object.keys(persistedCardsRef.current ?? {}),
-      ...Object.keys(liveCards),
-    ]);
+    const cached = new Set([...Object.keys(persistedCardsRef.current ?? {}), ...Object.keys(liveCards)]);
     const codes = allSets.filter((s) => matchesFilter(s, setFilter)).map((s) => s.code);
-    console.log(`[BrowseSets] calling startCoverFetch — filter: ${setFilter}, codes: ${codes.length}, cached: ${cached.size}`);
-
     startCoverFetch(codes, cached);
-
-    return () => console.log(`[BrowseSets] effect cleanup — filter: ${setFilter}`);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allSets.length, setFilter, fetchTrigger, storageLoaded]);
 
   function handleCardFetched(code: string, card: Card) {
@@ -205,7 +208,11 @@ export default function BrowseSets() {
     const next = { ...(persistedCards ?? {}) };
     delete next[code];
     setPersistedCards(next);
-    setLiveCards((prev) => { const n = { ...prev }; delete n[code]; return n; });
+    setLiveCards((prev) => {
+      const n = { ...prev };
+      delete n[code];
+      return n;
+    });
   }
 
   function handleAllCleared() {
@@ -217,7 +224,7 @@ export default function BrowseSets() {
 
   return (
     <Grid
-      columns={4}
+      columns={3}
       aspectRatio="2/3"
       fit={Grid.Fit.Fill}
       inset={Grid.Inset.Small}
