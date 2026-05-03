@@ -328,10 +328,7 @@ export function SetCardsView({
                     onFlip={() => toggleFlip(card.id)}
                     onShowDetails={() =>
                       push(
-                        <CardDetailView
-                          card={card}
-                          searchTagTarget={(query) => <Command initialSearch={query} />}
-                        />
+                        <CardDetailView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />
                       )
                     }
                     isSaved={isSaved}

@@ -262,7 +262,11 @@ export default function Command({
                         />
                       </ActionPanel.Section>
                       <ActionPanel.Section title="Feedback">
-                        <Action.OpenInBrowser title="Submit Bug or Feature Request" url={FEEDBACK_URL} icon={Icon.Bug} />
+                        <Action.OpenInBrowser
+                          title="Submit Bug or Feature Request"
+                          url={FEEDBACK_URL}
+                          icon={Icon.Bug}
+                        />
                       </ActionPanel.Section>
                     </ActionPanel>
                   ) : (
@@ -275,7 +279,9 @@ export default function Command({
                       onFlip={() => toggleFlip(card.id)}
                       onShowDetails={() => {
                         saveToHistory(debouncedSearchText);
-                        push(<CardDetailView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />);
+                        push(
+                          <CardDetailView card={card} searchTagTarget={(query) => <Command initialSearch={query} />} />
+                        );
                       }}
                       isSaved={isSaved}
                       onToggleSave={toggleSave}
