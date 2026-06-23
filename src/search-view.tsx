@@ -18,6 +18,7 @@ import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { COLLECTION_IDS_KEY, COLLECTION_NAMES_KEY } from "./collection";
+import { parseScryfallResponse, isExpectedSearchError } from "./shared";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -393,7 +394,13 @@ function CardDetailView({ card }: { card: Card }) {
 
 // ─── Main Search View ─────────────────────────────────────────────────────────
 
-export default function Command({ initialSearch = "", initialOrder = "name" }: { initialSearch?: string; initialOrder?: SortOrder }) {
+export default function Command({
+  initialSearch = "",
+  initialOrder = "name",
+}: {
+  initialSearch?: string;
+  initialOrder?: SortOrder;
+}) {
   const { push } = useNavigation();
   const [searchText, setSearchText] = useState(initialSearch);
   const [debouncedSearchText, setDebouncedSearchText] = useState(initialSearch);
@@ -441,14 +448,16 @@ export default function Command({ initialSearch = "", initialOrder = "name" }: {
     {
       execute: debouncedSearchText.trim().length > 0,
       keepPreviousData: true,
+      parseResponse: parseScryfallResponse<ScryfallSearchResponse>,
       onError: (err) => {
-        const isNotFound = err.message.includes("404") || err.message.includes("No cards found");
-        if (!isNotFound) {
-          console.error("[Scrycast] Search error:", err.message, "\nStack:", err.stack);
-          showToast({ style: Toast.Style.Failure, title: "Search failed", message: err.message });
-        } else {
-          console.log(`[Scrycast] No results for query: "${debouncedSearchText}"`);
+        // 404 (no matches) and 400 (incomplete syntax) are expected while the
+        // user is still typing — don't flash a failure toast for those.
+        if (isExpectedSearchError(err)) {
+          console.log(`[Scrycast] No results / incomplete query: "${debouncedSearchText}"`);
+          return;
         }
+        console.error("[Scrycast] Search error:", err.message, "\nStack:", err.stack);
+        showToast({ style: Toast.Style.Failure, title: "Search failed", message: err.message });
       },
     }
   );

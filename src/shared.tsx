@@ -50,6 +50,48 @@ export interface ScryfallSearchResponse {
 
 export type SortOrder = "name" | "edhrec" | "usd";
 
+export interface ScryfallError extends Error {
+  status?: number;
+  scryfallCode?: string;
+}
+
+// ─── Scryfall fetch helpers ───────────────────────────────────────────────────
+//
+// useFetch's default parser throws `new Error(response.statusText)` on any
+// non-2xx response, which loses the HTTP status. Scryfall returns 404 when a
+// (valid) query matches no cards and 400 when the query syntax is incomplete —
+// both happen constantly while the user is mid-typing (e.g. "c:", "cmc<=").
+// This parser preserves the status (and Scryfall's own error code/details) so
+// callers can silently ignore those expected cases instead of flashing a toast.
+
+export async function parseScryfallResponse<T>(response: Response): Promise<T> {
+  if (response.ok) return (await response.json()) as T;
+
+  let details: string | undefined;
+  let code: string | undefined;
+  try {
+    const body = (await response.json()) as { details?: string; code?: string };
+    details = body.details;
+    code = body.code;
+  } catch {
+    // Non-JSON error body — fall back to statusText below.
+  }
+
+  const err = new Error(details ?? response.statusText) as ScryfallError;
+  err.status = response.status;
+  err.scryfallCode = code;
+  throw err;
+}
+
+/**
+ * True for the "expected while typing" Scryfall errors: 404 (no cards matched)
+ * and 400 (incomplete/invalid query syntax). These should not surface a toast.
+ */
+export function isExpectedSearchError(err: Error): boolean {
+  const status = (err as ScryfallError).status;
+  return status === 404 || status === 400;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const FEEDBACK_URL = "https://github.com/aayushpi/scrycast/issues";

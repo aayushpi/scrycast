@@ -23,6 +23,7 @@ import {
   COLLECTION_STATS_KEY,
   CollectionStats,
 } from "./collection";
+import { parseScryfallResponse, isExpectedSearchError } from "./shared";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -191,11 +192,11 @@ function CollectionGrid({
     {
       execute: isSearchMode,
       keepPreviousData: true,
+      parseResponse: parseScryfallResponse<ScryfallSearchResponse>,
       onError: (err) => {
-        const isNotFound = err.message.includes("404") || err.message.includes("No cards found");
-        if (!isNotFound) {
-          showToast({ style: Toast.Style.Failure, title: "Search failed", message: err.message });
-        }
+        // 404 (no matches) and 400 (incomplete syntax) are expected while typing.
+        if (isExpectedSearchError(err)) return;
+        showToast({ style: Toast.Style.Failure, title: "Search failed", message: err.message });
       },
     }
   );

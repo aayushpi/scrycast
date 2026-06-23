@@ -10,6 +10,8 @@ import {
   getTaggerUrl,
   getEdhrecUrl,
   copyCardImage,
+  parseScryfallResponse,
+  isExpectedSearchError,
 } from "./shared";
 
 // ─── Tagger API ───────────────────────────────────────────────────────────────
@@ -212,7 +214,10 @@ export function PrintsView({ card, searchTagTarget }: PrintsViewProps) {
     `https://api.scryfall.com/cards/search?q=${encodeURIComponent(`!"${card.name}"`)}&unique=prints&order=released`;
 
   const { isLoading, data } = useFetch<ScryfallSearchResponse>(printsUrl, {
+    parseResponse: parseScryfallResponse<ScryfallSearchResponse>,
     onError: (err) => {
+      // 404 just means no prints matched — the empty view already covers that.
+      if (isExpectedSearchError(err)) return;
       showToast({ style: Toast.Style.Failure, title: "Failed to load prints", message: err.message });
     },
   });
